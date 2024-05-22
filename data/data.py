@@ -1,4 +1,7 @@
+# File data.py
+
 import sqlite3
+from datetime import datetime
 
 class DatabaseManager:
     def __init__(self):
@@ -13,8 +16,12 @@ class DatabaseManager:
         self.cursor.execute("CREATE TABLE IF NOT EXISTS \"books\" (\
             \"ID\"    INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,\
             \"NUM_GROUP\" INTEGER NOT NULL,\
-            \"ID_DISCIP\" INTEGER NOT NULL,\
-            \"NAME\"  TEXT NOT NULL)")
+            \"DISCIPLINES\" TEXT NOT NULL,\
+            \"NAME\"  TEXT NOT NULL,\
+            \"AUTHOR\" TEXT NOT NULL,\
+            \"PUBLISHER\" TEXT NOT NULL,\
+            \"YEAR_PUB\" INTEGER NOT NULL,\
+            \"YEAR_LICENSE_EXP\" INTEGER NOT NULL)")
         self.databaseConnect.commit()
 
         self.cursor.execute("CREATE TABLE IF NOT EXISTS \"groups\" (\
@@ -37,39 +44,36 @@ class DatabaseManager:
         self.cursor.execute("CREATE TABLE IF NOT EXISTS \"library\" (\
             \"ID\"    INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,\
             \"NUM_GROUP\" INTEGER NOT NULL,\
-            \"ID_STUDENT\"    INTEGER NOT NULL,\
-            \"ID_DISCIP\" INTEGER NOT NULL,\
-            \"BOOK\" INTEGER)")
+            \"STUDENTS\"    TEXT NOT NULL,\
+            \"DISCIPLINES\" TEXT NOT NULL,\
+            \"BOOK\" TEXT NOT NULL,\
+            \"DATE\" TEXT NOT NULL)")
         self.databaseConnect.commit()
 
     # group
     def create_group(self, num_group):
-        """
-        Создает новую запись в таблице 'groups' с указанным номером группы.
-
-        :param num_group: Номер группы для добавления.
-        """
         try:
-            self.cursor.execute("INSERT INTO groups (NUM_GROUP) VALUES (?)", (num_group,))
-            self.databaseConnect.commit()
-            print(f"Группа с номером {num_group} успешно добавлена в базу данных.")
+            self.cursor.execute("SELECT * FROM groups WHERE NUM_GROUP=?", (num_group,))
+            group_exists = self.cursor.fetchone()
+
+            if group_exists:
+                print(f"Группа с номером {num_group} уже существует в базе данных.")
+            else:
+                self.cursor.execute("INSERT INTO groups (NUM_GROUP) VALUES (?)", (num_group,))
+                self.databaseConnect.commit()
+                print(f"Группа с номером {num_group} успешно добавлена в базу данных.")
         except sqlite3.Error as e:
             print("Ошибка при добавлении группы в базу данных:", e)
 
-    def delete_group(self, num_group):
-        """
-        Удаляет группу с указанным номером из таблицы 'groups' и все связанные с ней записи из других таблиц.
 
-        :param num_group: Номер группы для удаления.
-        """
+    def delete_group(self, num_group):
         try:
-            # Удаляем все записи связанные с этой группой из других таблиц
             self.cursor.execute("DELETE FROM library WHERE NUM_GROUP = ?", (num_group,))
             self.cursor.execute("DELETE FROM disciplines WHERE NUM_GROUP = ?", (num_group,))
             self.cursor.execute("DELETE FROM students WHERE NUM_GROUP = ?", (num_group,))
+            self.cursor.execute("DELETE FROM books WHERE NUM_GROUP = ?", (num_group,))
             self.databaseConnect.commit()
 
-            # Удаляем группу из таблицы 'groups'
             self.cursor.execute("DELETE FROM groups WHERE NUM_GROUP = ?", (num_group,))
             self.databaseConnect.commit()
 
@@ -88,32 +92,43 @@ class DatabaseManager:
         
     # disciplines
     def create_disciplines(self, num_group, disciplines):
-        """
-        Создать дисциплины для определенной группы.
-
-        :param num_group: Номер группы.
-        :param disciplines: Список названий дисциплин для добавления.
-        """
         try:
-            self.cursor.execute("INSERT INTO disciplines (NUM_GROUP, NAME) VALUES (?, ?)",(num_group, disciplines))
-            self.databaseConnect.commit()
-            print(f"Дисциплина {disciplines} группы {num_group} успешно добавлена в базы данных.")
+            self.cursor.execute("SELECT * FROM groups WHERE NUM_GROUP=?", (num_group,))
+            group_exists = self.cursor.fetchone()
+
+            if group_exists:
+                self.cursor.execute("SELECT * FROM disciplines WHERE NUM_GROUP=? AND NAME=?", (num_group, disciplines))
+                existing_discipline = self.cursor.fetchone()
+
+                if existing_discipline:
+                    print(f"Дисциплина {disciplines} уже существует для группы {num_group}.")
+                else:
+                    self.cursor.execute("INSERT INTO disciplines (NUM_GROUP, NAME) VALUES (?, ?)",(num_group, disciplines))
+                    self.databaseConnect.commit()
+                    print(f"Дисциплина {disciplines} группы {num_group} успешно добавлена в базу данных.")
+            else:
+                print(f"Группы с номером {num_group} не существует в базе данных. Создаем новую группу...")
+                self.create_group(num_group)
+
+                self.cursor.execute("SELECT * FROM disciplines WHERE NUM_GROUP=? AND NAME=?", (num_group, disciplines))
+                existing_discipline = self.cursor.fetchone()
+
+                if existing_discipline:
+                    print(f"Дисциплина {disciplines} уже существует для группы {num_group}.")
+                else:
+                    self.cursor.execute("INSERT INTO disciplines (NUM_GROUP, NAME) VALUES (?, ?)",(num_group, disciplines))
+                    self.databaseConnect.commit()
+                    print(f"Дисциплина {disciplines} группы {num_group} успешно добавлена в базу данных.")
+
         except sqlite3.Error as e:
             print("Ошибка при добавлении дисциплин:", e)
 
+
     def delete_disciplines(self, num_group, disciplines):
-        """
-        Удаляет указанные дисциплины из таблицы 'disciplines' и все связанные с ними записи из других таблиц.
-
-        :param disciplines: Список названий дисциплин для удаления.
-        """
         try:
-
-            # Удаляем все записи связанные с этими дисциплинами из других таблиц
-            self.cursor.execute("DELETE FROM library WHERE ID_DISCIP IN (SELECT ID FROM disciplines WHERE NAME = ? AND NUM_GROUP = ?)", (disciplines, num_group))
+            self.cursor.execute("DELETE FROM library WHERE DISCIPLINES IN (SELECT ID FROM disciplines WHERE NAME = ? AND NUM_GROUP = ?)", (disciplines, num_group))
             self.databaseConnect.commit()
 
-            # Удаляем дисциплины из таблицы 'disciplines'
             self.cursor.execute("DELETE FROM disciplines WHERE NAME = ? AND NUM_GROUP = ?", (disciplines, num_group))
             self.databaseConnect.commit()
 
@@ -140,33 +155,44 @@ class DatabaseManager:
             return self.cursor.fetchall()
 
     # students
-    def create_students(self, num_group, students):
-        """
-        Создать студента для определенной группы.
-
-        :param num_group: Номер группы.
-        :param students: Имя студента для добавления.
-        """
+    def create_students(self, num_group, student):
         try:
-            self.cursor.execute("INSERT INTO students (NUM_GROUP, NAME) VALUES (?, ?)",(num_group, students))
-            self.databaseConnect.commit()
-            print(f"Студент {students} группы {num_group} успешно добавлен в базы данных.")
+            self.cursor.execute("SELECT * FROM groups WHERE NUM_GROUP=?", (num_group,))
+            group_exists = self.cursor.fetchone()
+
+            if group_exists:
+                self.cursor.execute("SELECT * FROM students WHERE NUM_GROUP=? AND NAME=?", (num_group, student))
+                existing_student = self.cursor.fetchone()
+
+                if existing_student:
+                    print(f"Студент {student} уже существует в группе {num_group}.")
+                else:
+                    self.cursor.execute("INSERT INTO students (NUM_GROUP, NAME) VALUES (?, ?)",(num_group, student))
+                    self.databaseConnect.commit()
+                    print(f"Студент {student} группы {num_group} успешно добавлен в базу данных.")
+            else:
+                print(f"Группы с номером {num_group} не существует в базе данных. Создаем новую группу...")
+                self.create_group(num_group)
+
+                self.cursor.execute("SELECT * FROM students WHERE NUM_GROUP=? AND NAME=?", (num_group, student))
+                existing_student = self.cursor.fetchone()
+
+                if existing_student:
+                    print(f"Студент {student} уже существует в группе {num_group}.")
+                else:
+                    self.cursor.execute("INSERT INTO students (NUM_GROUP, NAME) VALUES (?, ?)",(num_group, student))
+                    self.databaseConnect.commit()
+                    print(f"Студент {student} группы {num_group} успешно добавлен в базу данных.")
         except sqlite3.Error as e:
             print("Ошибка при добавлении студента:", e)
 
+
     def delete_students(self, num_group, students):
-        """
-        Удаляет указанные дисциплины из таблицы 'students' и все связанные с ними записи из других таблиц.
-
-        :param students: Имя студента для удаления.
-        """
         try:
-
-            # Удаляем все записи связанные с этими дисциплинами из других таблиц
-            self.cursor.execute("DELETE FROM library WHERE ID_DISCIP IN (SELECT ID FROM students WHERE NAME = ? AND NUM_GROUP = ?)", (students, num_group))
+            
+            self.cursor.execute("DELETE FROM library WHERE DISCIPLINES IN (SELECT ID FROM students WHERE NAME = ? AND NUM_GROUP = ?)", (students, num_group))
             self.databaseConnect.commit()
-
-            # Удаляем дисциплины из таблицы 'students'
+            
             self.cursor.execute("DELETE FROM students WHERE NAME = ? AND NUM_GROUP = ?", (students, num_group))
             self.databaseConnect.commit()
 
@@ -193,44 +219,63 @@ class DatabaseManager:
             return self.cursor.fetchall()
 
     # books
-    def create_books(self, num_group, disciplines, books):
-        """
-        Создать книгу для определенной группы и дисциплины.
-
-        :param num_group: Номер группы.
-        :param disciplines: Дисциплина
-        :param books: Название книги для добавления.
-        """
+    def create_books(self, num_group, disciplines, books, author, publisher, year_pub, year_license_exp):
         try:
-            self.cursor.execute("INSERT INTO books (NUM_GROUP, ID_DISCIP, NAME) VALUES (?, ?, ?)",(num_group, disciplines, books))
-            self.databaseConnect.commit()
-            print(f"Студент {books} группы {num_group} и дисциплины {disciplines} успешно добавлен в базы данных.")
+            self.cursor.execute("SELECT * FROM groups WHERE NUM_GROUP=?", (num_group,))
+            group_exists = self.cursor.fetchone()
+
+            if group_exists:
+                self.cursor.execute("SELECT * FROM disciplines WHERE NUM_GROUP=? AND NAME=?", (num_group, disciplines))
+                discipline_exists = self.cursor.fetchone()
+
+                if discipline_exists:
+                    self.cursor.execute("SELECT * FROM books WHERE NUM_GROUP=? AND DISCIPLINES=? AND NAME=?", (num_group, disciplines, books))
+                    existing_book = self.cursor.fetchone()
+
+                    if existing_book:
+                        print(f"Книга {books} уже существует для дисциплины {disciplines} и группы {num_group}.")
+                    else:
+                        self.cursor.execute("INSERT INTO books (NUM_GROUP, DISCIPLINES, NAME, AUTHOR, PUBLISHER, YEAR_PUB, YEAR_LICENSE_EXP) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                        (num_group, disciplines, books, author, publisher, year_pub, year_license_exp))
+                        self.databaseConnect.commit()
+                        print(f"Книга {books} для дисциплины {disciplines} и группы {num_group} успешно добавлена в базу данных.")
+                else:
+                    print(f"Дисциплины {disciplines} не существует для группы {num_group}. Создаем новую дисциплину...")
+                    self.create_disciplines(num_group, disciplines)
+
+                    self.cursor.execute("INSERT INTO books (NUM_GROUP, DISCIPLINES, NAME, AUTHOR, PUBLISHER, YEAR_PUB, YEAR_LICENSE_EXP) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                        (num_group, disciplines, books, author, publisher, year_pub, year_license_exp))
+                    self.databaseConnect.commit()
+                    print(f"Книга {books} для дисциплины {disciplines} и группы {num_group} успешно добавлена в базу данных.")
+            else:
+                print(f"Группы с номером {num_group} не существует в базе данных. Создаем новую группу...")
+                self.create_group(num_group)
+
+                print(f"Дисциплины {disciplines} не существует для группы {num_group}. Создаем новую дисциплину...")
+                self.create_disciplines(num_group, disciplines)
+
+                self.cursor.execute("INSERT INTO books (NUM_GROUP, DISCIPLINES, NAME, AUTHOR, PUBLISHER, YEAR_PUB, YEAR_LICENSE_EXP) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                                        (num_group, disciplines, books, author, publisher, year_pub, year_license_exp))
+                self.databaseConnect.commit()
+                print(f"Книга {books} для дисциплины {disciplines} и группы {num_group} успешно добавлена в базу данных.")
         except sqlite3.Error as e:
-            print("Ошибка при добавлении студента:", e)
+            print("Ошибка при добавлении книг:", e)
 
+    
     def delete_books(self, num_group, disciplines, books):
-        """
-        Удалить книгу из базы данных.
-
-        :param num_group: Номер группы.
-        :param disciplines: Дисциплина.
-        :param books: Название книги для удаления.
-        """
         try:
-            # Удаляем связанные записи из таблицы library
-            self.cursor.execute("DELETE FROM library WHERE NUM_GROUP = ? AND ID_DISCIP = ? AND BOOK = ?", (num_group, disciplines, books))
+            self.cursor.execute("DELETE FROM library WHERE NUM_GROUP = ? AND DISCIPLINES = ? AND BOOK = ?", (num_group, disciplines, books))
             self.databaseConnect.commit()
             print(f"Связанные записи в таблице library для книги {books} успешно удалены.")
             
-            # Удаляем книгу из таблицы books
-            self.cursor.execute("DELETE FROM books WHERE NUM_GROUP = ? AND ID_DISCIP = ? AND NAME = ?", (num_group, disciplines, books))
+            self.cursor.execute("DELETE FROM books WHERE NUM_GROUP = ? AND DISCIPLINES = ? AND NAME = ?", (num_group, disciplines, books))
             self.databaseConnect.commit()
             print(f"Книга {books} для группы {num_group} и дисциплины {disciplines} успешно удалена из базы данных.")
             
         except sqlite3.Error as e:
             print("Ошибка при удалении книги:", e)
 
-    def get_students(self):
+    def get_books(self):
         try:
             self.cursor.execute("SELECT * FROM books")
             self.databaseConnect.commit()
@@ -240,15 +285,8 @@ class DatabaseManager:
             return self.cursor.fetchall()
 
     def get_books_by_num_group_and_disciplines(self, num_group, disciplines):
-        """
-        Получить книги по номеру группы и дисциплине.
-
-        :param num_group: Номер группы.
-        :param disciplines: Дисциплина.
-        """
-        try:
-            # Выполняем запрос к базе данных для выбора книг по номеру группы и дисциплине
-            self.cursor.execute("SELECT * FROM books WHERE NUM_GROUP = ? AND ID_DISCIP = ?", (num_group, disciplines))
+        try:            
+            self.cursor.execute("SELECT * FROM books WHERE NUM_GROUP = ? AND DISCIPLINES = ?", (num_group, disciplines))
             self.databaseConnect.commit()
         except sqlite3.Error as e:
             print("Ошибка при получении списка книг:", e)
@@ -257,46 +295,32 @@ class DatabaseManager:
     
     # library
     def get_library_value(self, num_group, student, discipline):
-        """
-        Получить значение книги для указанного студента и дисциплины в выбранной группе.
-
-        :param num_group: Номер группы.
-        :param student: Имя студента.
-        :param discipline: Название дисциплины.
-        :return: Значение книги (или None, если значение не найдено).
-        """
         try:
-            self.cursor.execute("SELECT BOOK FROM library WHERE NUM_GROUP = ? AND ID_STUDENT = ? AND ID_DISCIP = ?", (num_group, student, discipline))
+            self.cursor.execute("SELECT BOOK FROM library WHERE NUM_GROUP = ? AND STUDENTS = ? AND DISCIPLINES = ?", (num_group, student, discipline))
             result = self.cursor.fetchone()
             if result:
-                return result[0]  # Возвращаем значение книги из результата запроса
+                return result[0]
             else:
-                return None  # Если значение не найдено, возвращаем None
+                return None
         except sqlite3.Error as e:
             print("Ошибка при получении значения из таблицы library:", e)
-            return None  # В случае ошибки также возвращаем None
+            return None  
 
     def update_database_value(self, num_group, student, discipline, value):
-        """
-        Получить значение книги для указанного студента и дисциплины в выбранной группе.
-
-        :param num_group: Номер группы.
-        :param student: Имя студента.
-        :param discipline: Название дисциплины.
-        :return: Значение книги (или None, если значение не найдено).
-        """
         try:
-            self.cursor.execute("SELECT * FROM library WHERE NUM_GROUP=? AND ID_STUDENT=? AND ID_DISCIP=?", (num_group, student, discipline))
+            current_date = int(datetime.now().timestamp())
+            self.cursor.execute("SELECT * FROM library WHERE NUM_GROUP=? AND STUDENTS=? AND DISCIPLINES=?", (num_group, student, discipline))
             existing_record = self.cursor.fetchone()
 
             if existing_record:
-                # Запись существует, обновляем значение
-                self.cursor.execute("UPDATE library SET BOOK=? WHERE NUM_GROUP=? AND ID_STUDENT=? AND ID_DISCIP=?", (value, num_group, student, discipline))
+                self.cursor.execute("UPDATE library SET BOOK=?, DATE=? WHERE NUM_GROUP=? AND STUDENTS=? AND DISCIPLINES=?", 
+                                    (value, current_date, num_group, student, discipline))
             else:
-                # Запись не существует, создаем новую запись
-                self.cursor.execute("INSERT INTO library (NUM_GROUP, ID_STUDENT, ID_DISCIP, BOOK) VALUES (?, ?, ?, ?)", (num_group, student, discipline, value))
+                self.cursor.execute("INSERT INTO library (NUM_GROUP, STUDENTS, DISCIPLINES, BOOK, DATE) VALUES (?, ?, ?, ?, ?)", 
+                                    (num_group, student, discipline, value, current_date))
 
             self.databaseConnect.commit()
         except sqlite3.Error as error:
             print("Ошибка при работе с базой данных:", error)
-            return False  # Возврат информации об ошибке
+            return False
+    

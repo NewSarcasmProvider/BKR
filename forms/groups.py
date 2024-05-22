@@ -1,27 +1,88 @@
+# File groups.py
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtSql import QSqlTableModel
 from data.data import DatabaseManager
+from forms.confirmdeletedialog import ConfirmDeleteDialog
 
 database = DatabaseManager()
 
-class Ui_groups(object):
+class Ui_groups(QtWidgets.QMainWindow):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.setupUi(self)
+
     def setupUi(self, groups):
         groups.setObjectName("groups")
         groups.resize(800, 600)
         self.centralwidget = QtWidgets.QWidget(groups)
         self.centralwidget.setObjectName("centralwidget")
-        self.groups_button_add = QtWidgets.QPushButton(self.centralwidget)
-        self.groups_button_add.setGeometry(QtCore.QRect(400, 20, 180, 30))
-        self.groups_button_add.setObjectName("groups_button_add")
-        self.groups_button_delete = QtWidgets.QPushButton(self.centralwidget)
-        self.groups_button_delete.setGeometry(QtCore.QRect(600, 20, 180, 30))
-        self.groups_button_delete.setObjectName("groups_button_delete")
+        self.verticalLayout = QtWidgets.QVBoxLayout(self.centralwidget)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.groups_back = QtWidgets.QPushButton(self.centralwidget)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.groups_back.sizePolicy().hasHeightForWidth())
+        self.groups_back.setSizePolicy(sizePolicy)
+        self.groups_back.setMinimumSize(QtCore.QSize(90, 30))
+        font = QtGui.QFont()
+        font.setFamily("Times New Roman")
+        font.setPointSize(14)
+        self.groups_back.setFont(font)
+        self.groups_back.setObjectName("groups_back")
+        self.verticalLayout.addWidget(self.groups_back)
+        self.lower_group = QtWidgets.QHBoxLayout()
+        self.lower_group.setObjectName("lower_group")
         self.groups_lineEdit = QtWidgets.QLineEdit(self.centralwidget)
-        self.groups_lineEdit.setGeometry(QtCore.QRect(20, 20, 360, 30))
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.groups_lineEdit.sizePolicy().hasHeightForWidth())
+        self.groups_lineEdit.setSizePolicy(sizePolicy)
+        self.groups_lineEdit.setMinimumSize(QtCore.QSize(0, 30))
+        font = QtGui.QFont()
+        font.setFamily("Times New Roman")
+        font.setPointSize(14)
+        self.groups_lineEdit.setFont(font)
         self.groups_lineEdit.setObjectName("groups_lineEdit")
+        self.lower_group.addWidget(self.groups_lineEdit)
+        self.groups_button_delete = QtWidgets.QPushButton(self.centralwidget)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.groups_button_delete.sizePolicy().hasHeightForWidth())
+        self.groups_button_delete.setSizePolicy(sizePolicy)
+        self.groups_button_delete.setMinimumSize(QtCore.QSize(190, 30))
+        font = QtGui.QFont()
+        font.setFamily("Times New Roman")
+        font.setPointSize(14)
+        self.groups_button_delete.setFont(font)
+        self.groups_button_delete.setObjectName("groups_button_delete")
+        self.lower_group.addWidget(self.groups_button_delete)
+        self.groups_button_add = QtWidgets.QPushButton(self.centralwidget)
+        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.groups_button_add.sizePolicy().hasHeightForWidth())
+        self.groups_button_add.setSizePolicy(sizePolicy)
+        self.groups_button_add.setMinimumSize(QtCore.QSize(190, 30))
+        font = QtGui.QFont()
+        font.setFamily("Times New Roman")
+        font.setPointSize(14)
+        self.groups_button_add.setFont(font)
+        self.groups_button_add.setObjectName("groups_button_add")
+        self.lower_group.addWidget(self.groups_button_add)
+        self.verticalLayout.addLayout(self.lower_group)
         self.groups_tableView = QtWidgets.QTableView(self.centralwidget)
-        self.groups_tableView.setGeometry(QtCore.QRect(20, 70, 760, 510))
+        font = QtGui.QFont()
+        font.setFamily("Times New Roman")
+        font.setPointSize(12)
+        self.groups_tableView.setFont(font)
+        self.groups_tableView.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.groups_tableView.setObjectName("groups_tableView")
+        self.verticalLayout.addWidget(self.groups_tableView)
         groups.setCentralWidget(self.centralwidget)
         self.statusbar = QtWidgets.QStatusBar(groups)
         self.statusbar.setObjectName("statusbar")
@@ -30,62 +91,63 @@ class Ui_groups(object):
         self.retranslateUi(groups)
         QtCore.QMetaObject.connectSlotsByName(groups)
 
-        # Подключаем обработчик событий к кнопке groups_button_add
-        self.groups_button_add.clicked.connect(self.add_group)
-
-        # Подключаем обработчик событий к кнопке groups_button_delete
-        self.groups_button_delete.clicked.connect(self.delete_group)
-
-        # Создаем модель данных и связываем ее с таблицей
         self.model = QSqlTableModel()
+
         self.groups_tableView.setModel(self.model)
 
-        # Заполняем таблицу данными из базы данных при открытии окна
-        self.load_data_to_table()
+        self.groups_button_add.clicked.connect(self.add_group)
+        self.groups_button_delete.clicked.connect(self.delete_group)
+        self.groups_back.clicked.connect(self.go_back_to_main)
 
+    def showEvent(self, event):
+        super().showEvent(event)
+        self.load_data_to_table()
+    
     def retranslateUi(self, groups):
         _translate = QtCore.QCoreApplication.translate
-        groups.setWindowTitle(_translate("groups", "MainWindow"))
-        self.groups_button_add.setText(_translate("groups", "Добавить группу"))
+        groups.setWindowTitle(_translate("groups", "Группы"))
+        self.groups_back.setText(_translate("groups", "Назад"))
         self.groups_button_delete.setText(_translate("groups", "Удалить группу"))
+        self.groups_button_add.setText(_translate("groups", "Добавить группу"))
+
+    def go_back_to_main(self):
+        self.close()
+        self.main_window.show()
 
     def add_group(self):
-        # Получаем num_group из QLineEdit
         num_group = self.groups_lineEdit.text()
         database.create_group(num_group)
         self.load_data_to_table() 
 
     def delete_group(self):
-        # Получаем num_group из QLineEdit
-        num_group = self.groups_lineEdit.text()
-        database.delete_group(num_group)
-        self.load_data_to_table() 
+        selected_index = self.groups_tableView.selectedIndexes()
+        if selected_index:
+            selected_row = selected_index[0].row()
+            group_name = self.groups_tableView.model().index(selected_row, 1).data()
+
+            confirm_dialog = ConfirmDeleteDialog(group_name)
+            if confirm_dialog.exec_() == QtWidgets.QDialog.Accepted:
+
+                database.delete_group(group_name)
+                self.load_data_to_table()
+        else:
+            QtWidgets.QMessageBox.warning(self, "Ошибка", "Выберите дисциплину для удаления.")
+
+    from PyQt5 import QtGui
 
     def load_data_to_table(self):
-         # Получаем данные из базы данных
         groups = database.get_groups()
+        sorted_groups = sorted(groups, key=lambda x: x[1])
         
-        # Создаем модель данных для отображения в таблице
-        model = QtGui.QStandardItemModel(len(groups), 2)  # 2 колонки: ID и NUM_GROUP
+        model = QtGui.QStandardItemModel(len(sorted_groups), 2)
         
-        # Устанавливаем заголовки колонок
         model.setHorizontalHeaderLabels(['ID', 'NUM_GROUP'])
         
-        # Заполняем модель данными из базы данных
-        for row, group in enumerate(groups):
+        for row, group in enumerate(sorted_groups):
             for column, data in enumerate(group):
                 item = QtGui.QStandardItem(str(data))
                 model.setItem(row, column, item)
         
-        # Устанавливаем созданную модель данных в таблицу
         self.groups_tableView.setModel(model)
-
-
-if __name__ == "__main__":
-    import sys
-    app = QtWidgets.QApplication(sys.argv)
-    groups = QtWidgets.QMainWindow()
-    ui = Ui_groups()
-    ui.setupUi(groups)
-    groups.show()
-    sys.exit(app.exec_())
+        
+        self.groups_tableView.horizontalHeader().setStretchLastSection(True)
