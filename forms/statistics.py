@@ -77,6 +77,9 @@ class Ui_statistics(QtWidgets.QMainWindow):
         self.students_statistics.clicked.connect(lambda: self.load_data_to_table("students"))
         self.groups_statistics.clicked.connect(lambda: self.load_data_to_table("groups"))
 
+        # Connect the combo box signal to the update table method
+        self.statistics_comboBox.currentIndexChanged.connect(self.update_table_on_combobox_change)
+
     def showEvent(self, event):
         super().showEvent(event)
         self.load_data_to_combobox()
@@ -122,3 +125,6 @@ class Ui_statistics(QtWidgets.QMainWindow):
         model.setHorizontalHeaderLabels(["Группа", "Процент выданных книг"])
         for group_num, percentage in group_statistics:
             model.appendRow([QStandardItem(str(group_num)), QStandardItem(f"{percentage:.2f}%")])
+
+    def update_table_on_combobox_change(self):
+        self.load_data_to_table("students")

@@ -189,9 +189,11 @@ class Ui_students(QtWidgets.QMainWindow):
 
     def import_students(self):
         import_manager.import_data('students')
+        self.load_data_to_combobox()
         self.load_data_to_table()
 
     
     def export_students(self):
         export_manager.export_data('students')
+        self.load_data_to_combobox()
         self.load_data_to_table()

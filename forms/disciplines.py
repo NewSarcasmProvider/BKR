@@ -179,9 +179,11 @@ class Ui_disciplines(QtWidgets.QMainWindow):
 
     def import_disciplines(self):
         import_manager.import_data('disciplines')
+        self.load_data_to_combobox()
         self.load_data_to_table()
 
     
     def export_disciplines(self):
         export_manager.export_data('disciplines')
+        self.load_data_to_combobox()
         self.load_data_to_table()

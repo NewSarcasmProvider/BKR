@@ -1,5 +1,3 @@
-# File books.py
-
 from PyQt5 import QtCore, QtGui, QtWidgets
 import openpyxl
 from PyQt5.QtWidgets import QFileDialog
@@ -194,6 +192,7 @@ class Ui_books(QtWidgets.QMainWindow):
     def showEvent(self, event):
         super().showEvent(event)
         self.load_data_to_combobox()
+        self.update_disciplines_combobox()
         self.load_data_to_table()
 
     def retranslateUi(self, books):
@@ -216,8 +215,13 @@ class Ui_books(QtWidgets.QMainWindow):
         for group in sorted_groups:
             self.books_comboBox.addItem(str(group[1]))
 
+        self.books_comboBox.currentIndexChanged.connect(self.update_disciplines_combobox)
+
+    def update_disciplines_combobox(self):
+        selected_group = self.books_comboBox.currentText()
         self.books_comboBox_2.clear()
-        disciplines = database.get_disciplines()
+
+        disciplines = database.get_disciplines_by_num_group(selected_group)
         for disciplines in disciplines:
             self.books_comboBox_2.addItem(str(disciplines[2]))
     
@@ -234,6 +238,7 @@ class Ui_books(QtWidgets.QMainWindow):
             year_license_exp = data['year_license_exp']
             database.create_books(num_group, disciplines, name, author, publisher, year_pub, year_license_exp)
             self.load_data_to_table()
+            self.update_disciplines_combobox()
     
     def delete_books(self):
         selected_index = self.books_tableView.selectedIndexes()
@@ -268,9 +273,13 @@ class Ui_books(QtWidgets.QMainWindow):
 
     def import_books(self):
         import_manager.import_data('books')
+        self.load_data_to_combobox()
+        self.update_disciplines_combobox()
         self.load_data_to_table()
 
     
     def export_books(self):
         export_manager.export_data('books')
+        self.load_data_to_combobox()
+        self.update_disciplines_combobox()
         self.load_data_to_table()
